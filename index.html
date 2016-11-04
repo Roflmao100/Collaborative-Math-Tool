@@ -1,0 +1,391 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Drawing Tool</title>
+		<script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+		<style>
+			#mainArea{
+				display: none;
+			}
+			#loginArea{
+				margin-left: 30px;
+				margin-right: 30px;
+				margin-top: 30px;
+			}
+			#errorMsgLogin{
+				display: none;
+			}
+			#drawArea{
+				transition: 0.3s;
+				margin-left: 20px;
+			}
+			#chatArea{
+				margin-left: 20px;
+				width: 0px;
+				transition: 0.5s;
+			}
+			#chatOpenButton:hover{
+				background-color: #bfbfbf;
+			}
+			#chatOpenButton:active{
+				background-color: #4d4d4d;
+			}
+			#shareButtons{
+				margin-left: 15px;
+			}
+			#shareButtons img{
+				width: 35px;
+				padding: 5px;
+				border: 0;
+				box-shadow: 0;
+				display: inline;
+			}
+			body{
+				background-color: #e6e6e6;
+				overflow-x: hidden;
+			}
+			#drawCanvas{
+				background-color: white;
+			}
+		</style>
+	</head>
+	<body id="bodyElement" style="overflow-x: hidden;">
+		<div id="loginArea" class="row">
+			<div class="row">
+				<div class="col-md-6">
+					<form id="loginForm" onsubmit="login(event)">
+						<div class="form-group">
+							<label>Enter Username</label>
+							<input type="text" class="form-control" id="username" maxlength="32">
+							<br>
+							<input type="submit" class="btn btn-primary" value="Login">
+							<h3 id="errorMsgLogin"></h3>
+						</div>
+					</form>
+					<div class="row" id="shareButtons">
+						<div class="row">
+							<a href="http://www.facebook.com/sharer.php?u=http://klaad.bplaced.net/" target="_blank" class="btn btn-primary btn-md">
+			        			<img src="https://simplesharebuttons.com/images/somacro/facebook.png" alt="Facebook" />
+			        			Share on Facebook
+							</a>
+							<a href="https://plus.google.com/share?url=http://klaad.bplaced.net/" target="_blank" class="btn btn-primary btn-md" style="background-color: #ff3300;">
+			        			<img src="https://simplesharebuttons.com/images/somacro/google.png" alt="Google" />
+			        			Share on Google+
+							</a>
+						</div>
+						<div class="row" style="margin-top: 10px;">
+							<a href="https://twitter.com/share?url=http://klaad.bplaced.net/&amp;text=Visit%20klaad.bplaced.net%20for%20random%20stuff&amp;hashtags=coolwebsite" target="_blank" class="btn btn-primary btn-md" style="background-color: #00ccff;">
+			        			<img src="https://simplesharebuttons.com/images/somacro/twitter.png" alt="Twitter" />
+			        			Share on Twitter
+							</a>
+							<a href="http://reddit.com/submit?url=http://klaad.bplaced.net/&amp;title=Cool Website" target="_blank" class="btn btn-primary btn-md" style="background-color: #e62e00;">
+			        			<img src="https://simplesharebuttons.com/images/somacro/reddit.png" alt="Reddit" />
+			        			Share on Reddit
+							</a>
+						</div>
+					</div>
+				</div>
+				<div class="col-md-6">
+					<div class="well">
+						<h3>Online Users</h3>
+						<ul class="list-group" id="userLoginList"></ul>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="mainArea">
+			<div class="row" style="margin-left: 10px">
+				<div class="col-md-1">
+					<div class="well well-sm" id="chatOpenButton" onclick="onOpenChat()">
+						<center><strong><p>Chat</p><strong></center>
+					</div>
+				</div>
+				<div class="col-md-11">
+					<div class="well well-sm">
+						<input type="button" class="btn btn-default" value="Clear" onclick="onClearCanvas()">
+						<input type="color" class="btn btn-default" value="#ff0000" id="penColorChooser" onchange="onPenColorChange()">
+						<input type="color" class="btn btn-default" value="#ffffff" id="backgroundColorChooser" onchange="onBackgroundColorChange()">
+						<input type="number" class="btn btn-default" id="penWidthSpinner" min="1" max="48" step="1" value="3">
+					</div>
+				</div>
+			</div>
+			<div class="row">
+				<table>
+					<tr>
+						<td>
+							<div id="chatArea">
+								<div class="row" id="chatAreaUserRow" style="display: none;">
+									<div class="well" style="overflow-y: auto;height: 200px;">
+										<ul class="list-group" id="userMainList"></ul>
+									</div>
+								</div>
+								<div class="row" id="chatAreaTextRow" style="display: none;">
+									<div class="well">
+										<div class="chat" style="overflow-y: auto;height: 180px;" id="chat"></div>
+										<form onsubmit="sendMessage(event)">
+											<div class="form-group">
+												<label>Enter Message</label>
+												<textarea class="form-control" id="chatMessage"></textarea>
+												<br>
+												<input type="submit" class="btn btn-primary" value="Send Message">
+											</div>
+										</form>
+									</div>
+								</div>
+							</div>
+						</td>
+						<td>
+							<div id="drawArea">
+								<canvas id="drawCanvas" style="border: solid 1px black;"></canvas>
+							</div>
+						</td>
+					</tr>
+				</table>
+			</div>
+		</div>
+		<script>
+			var loginArea = document.getElementById('loginArea');
+			var mainArea = document.getElementById('mainArea');
+			var usernameField = document.getElementById('username');
+			var userLoginList = document.getElementById('userLoginList');
+			var userMainList = document.getElementById('userMainList');
+			var errorMsgLogin = document.getElementById('errorMsgLogin');
+			var chatMessage = document.getElementById('chatMessage');
+			var chatOutput = document.getElementById('chat');
+			var chatArea = document.getElementById('chatArea');
+			var penColorChooser = document.getElementById('penColorChooser');
+			var backgroundColorChooser = document.getElementById('backgroundColorChooser');
+			var drawArea = document.getElementById('drawArea');
+			var penWidthSpinner = document.getElementById('penWidthSpinner');
+			var socket = io.connect();
+			var button = -1;
+			var color = getColor();
+			penColorChooser.value = color;
+			var stage = document.getElementById('drawCanvas');
+			stage.width = document.getElementById('bodyElement').getBoundingClientRect().width - 50;
+			stage.height = 600;
+			var ctx = stage.getContext('2d');
+			var circles = [];
+			var username;
+			var isFirstTouch = false;
+			var lastTouch = { xpos: 0, ypos: 0 }; 
+			var lastTouchUsers = [];
+			var isChatOpen = false;
+			var oldSpinnerWidth;
+
+			document.addEventListener('keydown', function(e){
+				var key = e.keyCode;
+				switch(key){
+					case 67:
+						onOpenChat();break;
+				}
+			}, false);
+
+			penWidthSpinner.addEventListener('mousedown', function(e){
+				oldSpinnerWidth = penWidthSpinner.value;
+			}, false);
+
+			penWidthSpinner.addEventListener('keydown', function(e){
+				var key = e.keyCode;
+				var spinnerValue = penWidthSpinner.value
+				switch(key){
+					case 13:
+						if(spinnerValue > 48 || spinnerValue < 1){
+							penWidthSpinner.value = oldSpinnerWidth;
+						}
+				}
+			}, false);
+
+			stage.addEventListener('mousemove', function(e){
+				if(button == 0){
+					var mousex = e.clientX - stage.getBoundingClientRect().left;
+					var mousey = e.clientY - stage.getBoundingClientRect().top;
+					var width = penWidthSpinner.value;
+					drawCircle(mousex, mousey, width, color);
+					var help;
+					if(isFirstTouch == true){
+						help = true;
+					}else{
+						help = false;
+					}
+					drawLine(lastTouch.xpos, lastTouch.ypos, mousex, mousey, width, color);
+					data = { lastTouchx: lastTouch.xpos, lastTouchy: lastTouch.ypos, currTouchx: mousex,
+					 currTouchy: mousey, width: width, col: color, isFirstTouch: help };
+					socket.emit('send data', data);
+				}
+			}, false);
+
+			stage.addEventListener('mousedown', function(e){
+				button = 0;
+			}, false);
+
+			stage.addEventListener('mouseup', function(e){
+				button = -1;
+				isFirstTouch = false;
+				data = { lastTouchx: 0, lastTouchy: 0, currTouchx: 0, currTouchy: 0, width: 0, col: '', isFirstTouch: isFirstTouch };
+				socket.emit('send data', data);
+			}, false);
+						
+			socket.on('update', function(data){
+				if(data.user != username){
+					drawCircle(data.drawing.currTouchx, data.drawing.currTouchy, data.drawing.width, data.drawing.col);
+					lastTouchUsers[data.user].firstTouch = data.drawing.isFirstTouch;
+					if(lastTouchUsers[data.user].firstTouch == true){
+						drawNormalLine(lastTouchUsers[data.user].xpos, lastTouchUsers[data.user].ypos, data.drawing.currTouchx, data.drawing.currTouchy, data.drawing.width, data.drawing.col);
+					}
+					lastTouchUsers[data.user].xpos = data.drawing.currTouchx;
+					lastTouchUsers[data.user].ypos = data.drawing.currTouchy;
+				}
+			});
+
+			function login(e){
+				e.preventDefault();
+				username = usernameField.value;
+				socket.emit('new user', usernameField.value, color, function(data){
+					switch(data){
+						case 0:
+							loginArea.style.display = 'none';
+							mainArea.style.display = 'block';break;
+						case 1:
+							errorMsgLogin.style.display = 'block';
+							errorMsgLogin.innerHTML = 'Username name is too short!';break;
+						case 2:
+							errorMsgLogin.style.display = 'block';
+							errorMsgLogin.innerHTML = 'Username contains special chars';break;
+						case 3:
+							errorMsgLogin.style.display = 'block';
+							errorMsgLogin.innerHTML = 'Username already exists';break;
+					}
+				});
+				usernameField.value = '';
+			}
+
+			function sendMessage(e){
+				e.preventDefault();
+				var text = chatMessage.value;
+				if(text.length > 0 && text.length < 64){
+					socket.emit('send message', { input: text, col: color });
+				}
+				chatMessage.value = '';
+			}
+
+			socket.on('init users', function(data){
+				for(var i = 0; i < data.length; i++){
+					var li = document.createElement('li');
+					li.appendChild(document.createTextNode(data[i].name));
+					li.setAttribute('class', 'list-group-item');
+					userLoginList.appendChild(li);
+					lastTouchUsers[data[i].name] = { xpos: 0, ypos: 0, firstTouch: false };
+				}
+			});
+
+			socket.on('update users', function(data, newUser, isConnecting){
+				if(isConnecting == true){
+					lastTouchUsers[newUser] = { xpos: 0, ypos: 0, firstTouch: false };
+				}else{
+					lastTouchUsers.splice(newUser, 1);
+				}
+				userMainList.innerHTML = '';
+				for(var i = 0; i < data.length; i++){
+					var li = document.createElement('li');
+					li.appendChild(document.createTextNode(data[i].name));
+					li.setAttribute('class', 'list-group-item');
+					li.setAttribute('style', 'background-color:' + data[i].col + ';color:white;font-weight:bold;');
+					userMainList.appendChild(li);
+				}
+			});
+
+			socket.on('new message', function(data){
+				chatOutput.innerHTML += '<strong style="color: ' + data.col + ';">' + data.user + ': ' + data.msg + '</strong><br>';
+				chatOutput.scrollTop = chatOutput.scrollHeight - chatOutput.clientHeight;
+			});
+
+			socket.on('change background color', function(newColor){
+				stage.style.backgroundColor = newColor;
+			});
+						
+			function getColor(){
+				var letters = '0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F';
+				letters = letters.split(",");
+				var color = '#';
+				var rand;
+				for(var i = 0; i < 6; i++){
+					rand = Math.floor(Math.random() * 16);
+					color += letters[rand];
+				}
+				return color;
+			}
+
+			function drawCircle(xpos, ypos, radius, col){
+				ctx.beginPath();
+				ctx.fillStyle = col;
+				ctx.arc(xpos, ypos, radius, 0, 2 * Math.PI, false);
+				ctx.fill();
+			}
+
+			function drawLine(srcx, srcy, destx, desty, width, col, user){
+				if(isFirstTouch == true){
+					ctx.beginPath();
+					ctx.moveTo(srcx, srcy);
+					ctx.lineTo(destx, desty);
+					ctx.lineWidth = width * 2;
+					ctx.strokeStyle = col;
+					ctx.stroke();
+				}
+				isFirstTouch = true;
+				lastTouch = { xpos: destx, ypos: desty };
+			}
+
+			function drawNormalLine(srcx, srcy, destx, desty, width, col){
+				ctx.beginPath();
+				ctx.moveTo(srcx, srcy);
+				ctx.lineTo(destx, desty);
+				ctx.lineWidth = width * 2;
+				ctx.strokeStyle = col;
+				ctx.stroke();
+			}
+
+			function drawRect(xpos, ypos, width, height, col){
+				ctx.beginPath();
+				ctx.fillStyle = col;
+				ctx.fillRect(xpos, ypos, width, height);
+			}
+
+			function drawText(text, xpos, ypos, font, size, col){
+				ctx.fillStyle = col;
+				ctx.font = size + 'px ' + font;
+				ctx.fillText(text, xpos, ypos);
+			}
+
+			function onClearCanvas(){
+				ctx.fillStyle = 'white';
+				drawRect(0, 0, stage.width, stage.height);
+			}
+
+			function onPenColorChange(){
+				color = penColorChooser.value
+			}
+
+			function onBackgroundColorChange(){
+				var newColor = backgroundColorChooser.value;
+				socket.emit('new background color', newColor);
+			}
+
+			function onOpenChat(){
+				if(isChatOpen == false){
+					document.getElementById('chatAreaUserRow').style.display = 'block';
+					document.getElementById('chatAreaTextRow').style.display = 'block';
+					chatArea.style.width = '250px';
+					isChatOpen = true;
+				}else{
+					chatArea.style.width = '0px';
+					document.body.style.backgroundColor = '#e6e6e6';
+					document.getElementById('chatAreaUserRow').style.display = 'none';
+					document.getElementById('chatAreaTextRow').style.display = 'none';
+					isChatOpen = false;
+				}
+			}
+		</script>
+	</body>
+</html>
