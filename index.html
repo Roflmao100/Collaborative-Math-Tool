@@ -97,7 +97,7 @@
 		<div id="mainArea">
 			<div class="row" style="margin-left: 10px">
 				<div class="col-md-1">
-					<div class="well well-sm" id="chatOpenButton" onclick="onOpenChat()">
+					<div class="well well-sm" id="chatOpenButton">
 						<center><strong><p>Chat</p><strong></center>
 					</div>
 				</div>
@@ -171,32 +171,34 @@
 			var isFirstTouch = false;
 			var lastTouch = { xpos: 0, ypos: 0 }; 
 			var lastTouchUsers = [];
-			var isChatOpen = false;
 			var oldSpinnerWidth;
+			var keys = [];
+			var isChatOpen = false;
 
 			document.addEventListener('keydown', function(e){
-				var key = e.keyCode;
-				switch(key){
-					case 67:
-						onOpenChat();break;
+				if(loginArea.style.display == 'none'){
+					var key = e.keyCode;
+					keys[key] = true;
+					switch(key){
+						case 13:
+						case 27: onOpenChat();break;
+					}
 				}
+			}, false);
+
+			document.addEventListener('keyup', function(e){
+				keys[e.keyCode] = false;
 			}, false);
 
 			penWidthSpinner.addEventListener('mousedown', function(e){
 				oldSpinnerWidth = penWidthSpinner.value;
 			}, false);
 
-			/*penWidthSpinner.addEventListener('keydown', function(e){
-				var key = e.keyCode;
-				var spinnerValue = penWidthSpinner.value;
-			}, false);*/
-
 			stage.addEventListener('mousemove', function(e){
 				if(button == 0){
 					var mousex = e.clientX - stage.getBoundingClientRect().left;
 					var mousey = e.clientY - stage.getBoundingClientRect().top;
 					var width = penWidthSpinner.value;
-					console.log(width);
 					if(width > 48 || width < 1){
 						width = oldSpinnerWidth;
 						penWidthSpinner.value = width;
@@ -373,16 +375,16 @@
 
 			function onOpenChat(){
 				if(isChatOpen == false){
+					isChatOpen = true;
 					document.getElementById('chatAreaUserRow').style.display = 'block';
 					document.getElementById('chatAreaTextRow').style.display = 'block';
 					chatArea.style.width = '250px';
-					isChatOpen = true;
 				}else{
+					isChatOpen = false;
 					chatArea.style.width = '0px';
 					document.body.style.backgroundColor = '#e6e6e6';
 					document.getElementById('chatAreaUserRow').style.display = 'none';
 					document.getElementById('chatAreaTextRow').style.display = 'none';
-					isChatOpen = false;
 				}
 			}
 		</script>
