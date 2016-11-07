@@ -186,22 +186,21 @@
 				oldSpinnerWidth = penWidthSpinner.value;
 			}, false);
 
-			penWidthSpinner.addEventListener('keydown', function(e){
+			/*penWidthSpinner.addEventListener('keydown', function(e){
 				var key = e.keyCode;
-				var spinnerValue = penWidthSpinner.value
-				switch(key){
-					case 13:
-						if(spinnerValue > 48 || spinnerValue < 1){
-							penWidthSpinner.value = oldSpinnerWidth;
-						}
-				}
-			}, false);
+				var spinnerValue = penWidthSpinner.value;
+			}, false);*/
 
 			stage.addEventListener('mousemove', function(e){
 				if(button == 0){
 					var mousex = e.clientX - stage.getBoundingClientRect().left;
 					var mousey = e.clientY - stage.getBoundingClientRect().top;
 					var width = penWidthSpinner.value;
+					console.log(width);
+					if(width > 48 || width < 1){
+						width = oldSpinnerWidth;
+						penWidthSpinner.value = width;
+					}
 					drawCircle(mousex, mousey, width, color);
 					var help;
 					if(isFirstTouch == true){
